@@ -23,9 +23,9 @@
   <!-- mobile menu -->
   <div
     class="xl:hidden bg-white shadow-md overflow-hidden transition-all duration-300 ease-in-out"
-    :class="isOpen ? 'opacity-100 min-h-dvh p-4' : 'opacity-0 max-h-0 p-0'"
+    :class="isOpen ? 'opacity-100 p-4' : 'opacity-0 max-h-0 p-0'"
   >
-    <nav class="space-y-6 text-[#718EBF] text-lg">
+    <nav class="space-y-4 text-[#718EBF] text-lg">
       <RouterLink
         v-for="item in menuItems"
         :key="item.path"
@@ -36,6 +36,15 @@
         <i :class="[item.icon, 'w-6 text-xl']"></i>
         <span>{{ item.name }}</span>
       </RouterLink>
+
+      <button
+        type="button"
+        @click="handleLogout"
+        class="flex items-center gap-4 w-full active:scale-95 transition-all duration-100"
+      >
+        <i class="fa-solid fa-right-from-bracket w-6 text-xl"></i>
+        <span>退出登录</span>
+      </button>
     </nav>
   </div>
 
@@ -71,9 +80,16 @@
 <script setup>
 import { ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
+import { useLogout } from "../composables/useLogout";
 
 const route = useRoute();
 const isOpen = ref(false);
+const { logout } = useLogout();
+
+function handleLogout() {
+  isOpen.value = false;
+  logout();
+}
 
 const isActiveMenu = (path) => {
   if (path === "/dashboard") {

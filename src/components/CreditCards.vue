@@ -2,19 +2,25 @@
   <div class="w-full min-h-dvh bg-[#F5F7FA]">
     <div class="p-3">
       <h2 class="text-[#343C6A] font-bold text-[22px] mb-2 pl-4">我的银行卡</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-3">
+
+      <p v-if="pageLoading" class="text-[#718EBF] text-sm pl-4">加载中...</p>
+      <p
+        v-else-if="displayCards.length === 0"
+        class="text-[#718EBF] text-sm pl-4"
+      >
+        暂无银行卡数据
+      </p>
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-3">
         <Card
-          backgroundColor="bg-[linear-gradient(123deg,#2d60ff_2%,#539bff_101%)]"
-          textColor="text-white"
+          v-for="(card, index) in displayCards"
+          :key="card.id"
           class="cursor-pointer active:scale-95 transition-all duration-100"
-        />
-        <Card
-          class="cursor-pointer active:scale-95 transition-all duration-100"
-        />
-        <Card
-          background-color="bg-[#FFFFFF]"
-          text-color="text-[#343C6A]"
-          class="cursor-pointer active:scale-95 transition-all duration-100"
+          :variant="CARD_VARIANTS[index % CARD_VARIANTS.length]"
+          :name="card.card_holder"
+          :card-number="formatCardNumber(card.card_number_masked)"
+          :expiration-date="formatCardExpiry(card.expiry_date)"
+          :balance="card.balance"
         />
       </div>
     </div>
@@ -27,7 +33,17 @@
           </h2>
 
           <div class="bg-white rounded-[25px] p-4">
-            <div ref="chartRef" class="w-full h-[300px]"></div>
+            <p
+              v-if="!pageLoading && consumptionPieData.length === 0"
+              class="text-[#718EBF] text-sm text-center py-24"
+            >
+              暂无消费数据
+            </p>
+            <div
+              v-show="pageLoading || consumptionPieData.length > 0"
+              ref="chartRef"
+              class="w-full h-[300px]"
+            ></div>
           </div>
         </div>
 
@@ -35,28 +51,36 @@
           <h2 class="text-[#343C6A] font-bold text-[22px] mb-2 pl-4">
             银行卡列表
           </h2>
-          
-          <div class="flex flex-col gap-4">
-          <BankCardList
-            v-for="item in bankCards"
-            :key="item.id"
-            v-bind="item"
-          />
-        </div>
+
+          <p v-if="pageLoading" class="text-[#718EBF] text-sm pl-4">加载中...</p>
+          <p
+            v-else-if="bankCardListItems.length === 0"
+            class="text-[#718EBF] text-sm pl-4"
+          >
+            暂无银行卡数据
+          </p>
+
+          <div v-else class="flex flex-col gap-4">
+            <BankCardList
+              v-for="item in bankCardListItems"
+              :key="item.id"
+              v-bind="item"
+            />
+          </div>
         </div>
       </div>
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-4 p-3 min-h-[500px]">
-        <div>
-            <h2 class="text-[#343C6A] font-bold text-[22px] mb-2 pl-4">添加银行卡</h2>
-            <AddBankCardForm />
-        </div>
+      <div>
+        <h2 class="text-[#343C6A] font-bold text-[22px] mb-2 pl-4">添加银行卡</h2>
+        <AddBankCardForm @created="fetchPageData" />
+      </div>
 
-        <div>
-            <h2 class="text-[#343C6A] font-bold text-[22px] mb-2 pl-4">卡片设置</h2>
-            <CardSettingsPanel  />
-        </div>
+      <div>
+        <h2 class="text-[#343C6A] font-bold text-[22px] mb-2 pl-4">卡片设置</h2>
+        <CardSettingsPanel />
+      </div>
     </div>
   </div>
 </template>
@@ -68,58 +92,96 @@ import BankCardList from "../tools/BankCardList.vue";
 import { ref, onMounted, onUnmounted } from "vue";
 import * as echarts from "echarts";
 import Card from "../tools/card.vue";
+import { listMyBankCards } from "../api/bank-cards";
+import { listMyRecentTransactions } from "../api/transactions";
 
-const bankCards = [
-  {
-    id: 1,
+const CARD_VARIANTS = ["blue", "primary", "light"];
 
-    cardType: "副卡",
+const CARD_TYPE_LABELS = {
+  DEBIT: "借记卡",
+  CREDIT: "信用卡",
+  SUPPLEMENTARY: "副卡",
+};
 
-    bankName: "中国银行",
-
-    cardNumber: "**** **** 5600",
-
-    holderName: "张三丰",
-
-    iconBg: "bg-[#E7EDFF]",
-    iconColor: "text-[#396AFF]",
-  },
-
-  {
-    id: 2,
-
-    cardType: "副卡",
-
-    bankName: "工商银行",
-
-    cardNumber: "**** **** 4300",
-
-    holderName: "张三丰",
-
-    iconBg: "bg-[#FFE0EB]",
-    iconColor: "text-[#FF82AC]",
-  },
-
-  {
-    id: 3,
-
-    cardType: "副卡",
-
-    bankName: "农业银行",
-
-    cardNumber: "**** **** 7560",
-
-    holderName: "张三丰",
-
-    iconBg: "bg-[#FFF5D9]",
-    iconColor: "text-[#FFBB38]",
-  },
+const LIST_ICON_STYLES = [
+  { iconBg: "bg-[#E7EDFF]", iconColor: "text-[#396AFF]" },
+  { iconBg: "bg-[#FFE0EB]", iconColor: "text-[#FF82AC]" },
+  { iconBg: "bg-[#FFF5D9]", iconColor: "text-[#FFBB38]" },
 ];
 
-const chartRef = ref(null);
-let MyChart = null;
+const PIE_COLORS = ["#396AFF", "#16DBCC", "#FF82AC", "#FFBB38", "#718EBF"];
 
-const getCardConsumeOption = () => {
+const chartRef = ref(null);
+let myChart = null;
+
+const pageLoading = ref(true);
+const displayCards = ref([]);
+const bankCardListItems = ref([]);
+const consumptionPieData = ref([]);
+
+function formatCardExpiry(expiryDate) {
+  const [year, month] = expiryDate.split("-");
+  return `${month}/${year.slice(-2)}`;
+}
+
+function formatCardNumber(maskedNumber) {
+  const digits = maskedNumber.replace(/\D/g, "");
+  if (digits.length <= 4) {
+    return `**** **** **** ${digits}`;
+  }
+  return maskedNumber;
+}
+
+function formatCardLabel(card) {
+  const digits = card.card_number_masked.replace(/\D/g, "");
+  const last4 = digits.slice(-4) || "****";
+  return `${card.bank_name} · ${last4}`;
+}
+
+function mapBankCardsToListItems(cards) {
+  return cards.map((card, index) => {
+    const style = LIST_ICON_STYLES[index % LIST_ICON_STYLES.length];
+
+    return {
+      id: card.id,
+      cardType: CARD_TYPE_LABELS[card.card_type] ?? card.card_type,
+      bankName: card.bank_name,
+      cardNumber: formatCardNumber(card.card_number_masked),
+      holderName: card.card_holder,
+      iconBg: style.iconBg,
+      iconColor: style.iconColor,
+    };
+  });
+}
+
+function buildConsumptionPieData(cards, transactions) {
+  const cardMap = Object.fromEntries(cards.map((card) => [card.id, card]));
+
+  const spendingByCardId = transactions.reduce((accumulator, transaction) => {
+    const amount = Number.parseFloat(transaction.amount);
+    if (Number.isNaN(amount) || amount >= 0) {
+      return accumulator;
+    }
+
+    const cardId = transaction.bank_card_id;
+    accumulator[cardId] = (accumulator[cardId] ?? 0) + Math.abs(amount);
+    return accumulator;
+  }, {});
+
+  return Object.entries(spendingByCardId)
+    .filter(([cardId]) => cardMap[Number(cardId)])
+    .map(([cardId, value], index) => ({
+      value,
+      name: formatCardLabel(cardMap[Number(cardId)]),
+      itemStyle: {
+        color: PIE_COLORS[index % PIE_COLORS.length],
+      },
+    }));
+}
+
+function getCardConsumeOption() {
+  const legendData = consumptionPieData.value.map((item) => item.name);
+
   return {
     tooltip: {
       trigger: "item",
@@ -138,7 +200,7 @@ const getCardConsumeOption = () => {
         fontSize: 14,
         fontWeight: 600,
       },
-      data: ["中国银行", "工商银行", "建设银行", "农业银行"],
+      data: legendData,
     },
 
     series: [
@@ -162,54 +224,55 @@ const getCardConsumeOption = () => {
           borderWidth: 0,
         },
 
-        data: [
-          {
-            value: 25,
-            name: "中国银行",
-            itemStyle: {
-              color: "#396AFF",
-            },
-          },
-          {
-            value: 25,
-            name: "建设银行",
-            itemStyle: {
-              color: "#16DBCC",
-            },
-          },
-          {
-            value: 25,
-            name: "工商银行",
-            itemStyle: {
-              color: "#FF82AC",
-            },
-          },
-          {
-            value: 25,
-            name: "农业银行",
-            itemStyle: {
-              color: "#FFBB38",
-            },
-          },
-        ],
+        data: consumptionPieData.value,
       },
     ],
   };
-};
+}
 
-const resizeChart = () => {
-  MyChart?.resize();
-};
+function renderChart() {
+  if (!myChart || consumptionPieData.value.length === 0) {
+    return;
+  }
+
+  myChart.setOption(getCardConsumeOption(), true);
+  myChart.resize();
+}
+
+async function fetchPageData() {
+  pageLoading.value = true;
+
+  try {
+    const [cards, transactions] = await Promise.all([
+      listMyBankCards(),
+      listMyRecentTransactions({ limit: 100 }),
+    ]);
+
+    displayCards.value = cards.slice(0, 3);
+    bankCardListItems.value = mapBankCardsToListItems(cards);
+    consumptionPieData.value = buildConsumptionPieData(cards, transactions);
+  } catch {
+    displayCards.value = [];
+    bankCardListItems.value = [];
+    consumptionPieData.value = [];
+  } finally {
+    pageLoading.value = false;
+    renderChart();
+  }
+}
+
+function resizeChart() {
+  renderChart();
+}
 
 onMounted(() => {
-  MyChart = echarts.init(chartRef.value);
-  MyChart.setOption(getCardConsumeOption());
-
+  myChart = echarts.init(chartRef.value);
+  fetchPageData();
   window.addEventListener("resize", resizeChart);
 });
 
 onUnmounted(() => {
   window.removeEventListener("resize", resizeChart);
-  MyChart?.dispose();
+  myChart?.dispose();
 });
 </script>

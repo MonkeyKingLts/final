@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "pages": {
+      "source": "git@github.com:posva/vue-rulekit.git",
+      "sourceType": "git",
+      "skillPath": "skills/pages/SKILL.md",
+      "computedHash": "c91ff46f48af82c8f1fc25f4216c3ff775d48501ed96e1765810b66430ec7290"
+    }
+  }
+}

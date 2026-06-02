@@ -1,0 +1,1 @@
+C:/Users/27801/Desktop/vue-rulekits/vue-rulekit/PROJECT/CLAUDE.md

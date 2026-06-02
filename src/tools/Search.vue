@@ -23,11 +23,12 @@
       </div>
 
       <!-- settings -->
-      <button
+      <RouterLink
+        to="/settings"
         class="size-[50px] rounded-full bg-[#F5F7FA] flex items-center justify-center cursor-pointer active:scale-90 transition-all duration-100"
       >
         <i class="fa-solid fa-gear text-[#718EBF] text-xl"></i>
-      </button>
+      </RouterLink>
 
       <!-- notification -->
       <button
@@ -43,8 +44,18 @@
       <!-- avatar -->
       <img
         src="https://i.pravatar.cc/150?img=32"
+        alt="用户头像"
         class="size-[60px] rounded-full object-cover cursor-pointer active:scale-90 transition-all duration-100"
       />
+
+      <button
+        type="button"
+        @click="logout"
+        class="flex items-center gap-2 h-[50px] px-5 rounded-full bg-[#F5F7FA] text-[#718EBF] hover:text-[#FE5C73] cursor-pointer active:scale-90 transition-all duration-100"
+      >
+        <i class="fa-solid fa-right-from-bracket text-lg"></i>
+        <span class="text-sm font-medium whitespace-nowrap">退出登录</span>
+      </button>
     </div>
   </div>
 </template>
@@ -52,10 +63,11 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
+import { useLogout } from '../composables/useLogout';
 
 const route = useRoute()
-
+const { logout } = useLogout()
 const menuItems = [
   {
     name: '实时看板',
@@ -92,6 +104,7 @@ const menuItems = [
 ]
 
 const currentTitle = computed(() => {
-  return menuItems.find(item => item.path === route.path)?.name || '实时看板'
+  const matchedItem = menuItems.find((item) => route.path.startsWith(item.path))
+  return matchedItem?.name || '实时看板'
 })
 </script>
