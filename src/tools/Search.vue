@@ -43,7 +43,8 @@
 
       <!-- avatar -->
       <img
-        src="https://i.pravatar.cc/150?img=32"
+        :src="avatarUrl"
+        @error="handleAvatarError"
         alt="用户头像"
         class="size-[60px] rounded-full object-cover cursor-pointer active:scale-90 transition-all duration-100"
       />
@@ -62,12 +63,31 @@
 
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router';
 import { useLogout } from '../composables/useLogout';
+import { getCurrentUser } from '../api/auth';
+import { buildInitialsAvatar, resolveAvatarUrl } from '../utils/avatar';
 
 const route = useRoute()
 const { logout } = useLogout()
+
+const avatarUrl = ref(buildInitialsAvatar(''))
+const avatarFullName = ref('')
+
+function handleAvatarError() {
+  avatarUrl.value = buildInitialsAvatar(avatarFullName.value)
+}
+
+onMounted(async () => {
+  try {
+    const user = await getCurrentUser()
+    avatarFullName.value = user.full_name
+    avatarUrl.value = resolveAvatarUrl(user.avatar_url, user.full_name)
+  } catch {
+    // 未登录或请求失败时保持首字母占位头像
+  }
+})
 const menuItems = [
   {
     name: '实时看板',
