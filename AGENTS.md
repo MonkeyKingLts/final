@@ -8,9 +8,10 @@
 - There is **no lint script and no test suite** configured in this repo.
 
 ### Backend dependency (important)
-- The app talks to an **external** "Awesome Bank API" backend that is **NOT part of this repo**. `vite.config.js` proxies `/api/*` to `http://127.0.0.1:8000` (stripping the `/api` prefix). `openapi.json` at the repo root documents that backend's contract.
+- The app talks to the **"Awesome Bank API"** FastAPI backend. In Cursor Cloud this lives in a sibling repo in the same workspace at `/agent/repos/finalBackend` (remote `github.com/MonkeyKingLts/finalBackend`). `vite.config.js` proxies `/api/*` to `http://127.0.0.1:8000` (stripping the `/api` prefix). `openapi.json` at the repo root documents the backend contract.
 - Without a backend on `127.0.0.1:8000`, the UI loads but login/register and all dashboard data calls fail (network errors). The login page itself and client-side form validation still work offline.
-- For end-to-end testing without the real backend, run a mock server on port 8000 that implements the endpoints in `openapi.json` (key ones: `POST /register`, `POST /token` form-urlencoded, `GET /users/me`, `GET /users/me/bank-cards`, `GET /users/me/transactions`, `GET /users/me/consumption-stats`, `GET /users/me/account`). A seeded demo user (`demo` / `password123`) plus register→login→dashboard is the natural smoke test. The token endpoint expects `application/x-www-form-urlencoded` with `username`/`password`; auth uses a `Bearer` token from the `/token` response.
+- **Running the backend** (from `/agent/repos/finalBackend`, with its venv active): `python -m uvicorn src.main:app --host 127.0.0.1 --port 8000`. The token endpoint expects `application/x-www-form-urlencoded` with `username`/`password`; auth uses a `Bearer` token from the `/token` response. The DB is SQLite (`database.db`, auto-created, committed already seeded).
+- **Smoke test:** log in as the seeded user `demo` / `12345678` (NOTE: the seed script and live DB use `12345678`, not `password123`), then register→login→dashboard.
 
 ### Notes
 - UI text is intentionally in Chinese; the browser's "translate this page" prompt is not an app feature.
